@@ -1,5 +1,5 @@
 #!/bin/bash
-# automated-ollama-setup.sh
+# automated-ollama-setup.sh 
 # This script is designed to be used as AWS EC2 User Data for the AI Tier.
 
 # Export HOME for cloud-init environment to prevent Ollama panic
