@@ -24,13 +24,14 @@ jobs:
       - name: Create kind cluster
         uses: helm/kind-action@v1
         with:
-          cluster_name: bankapp-cluster
+          cluster_name: ai-bankapp-cluster
+          config: setup-k8s/kind-config.yml
 
       - name: Verify kind cluster is reachable
         run: |
           kubectl config current-context
-          kind get clusters | grep -q "^bankapp-cluster$" || \
-            (echo "::error::kind cluster 'bankapp-cluster' not found" && exit 1)
+          kind get clusters | grep -q "^ai-bankapp-cluster$" || \
+            (echo "::error::kind cluster 'ai-bankapp-cluster' not found" && exit 1)
 
       - name: Ensure namespace exists
         run: |
@@ -97,14 +98,14 @@ jobs:
       - name: Smoke Check
         run: |
           sleep 5
-          curl -sf http://localhost:30080 -o /dev/null || \
-            (echo "::error::App did not respond on port 30080 after deploy" && exit 1)
+          curl -sf http://localhost:8080 -o /dev/null || \
+            (echo "::error::App did not respond on port 8080 after deploy" && exit 1)
 
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.15.0
         continue-on-error: true  # Workaround for ZAP's internal artifact upload bug
         with:
-          target: 'http://localhost:30080'
+          target: 'http://localhost:8080'
           artifact_name: zapreport
           fail_action: false
           allow_issue_writing: false
