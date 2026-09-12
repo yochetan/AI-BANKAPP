@@ -4,84 +4,75 @@ on:
   workflow_call:
 
 permissions:
-  id-token: write  # Required for OIDC
   contents: read
+  packages: read   # Required to pull the image from GHCR
 
 jobs:
 
   # ============================================================
-  # GATE 8: DEPLOY
+  # GATE 8: DEPLOY TO KIND
   # ============================================================
   deploy:
-    name: Deploy to EC2 via SSH
-    runs-on: ubuntu-latest
+    name: Deploy to kind
+    # Runs on your own machine, next to the kind cluster.
+    # Repo/org settings -> Actions -> Runners -> New self-hosted runner
+    runs-on: self-hosted
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Create Deployment Directory
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: mkdir -p ~/bankapp
+      - name: Verify kind cluster is reachable
+        run: |
+          kubectl config current-context
+          kind get clusters | grep -q "^bankapp-cluster$" || \
+            (echo "::error::kind cluster 'bankapp-cluster' not found" && exit 1)
 
-      - name: Copy app-tier.yml to EC2
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "app-tier.yml"
-          target: "~/bankapp"
+      - name: Ensure namespace exists
+        run: |
+          kubectl create namespace bankapp --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            # Login to ECR
-            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+      - name: Create/Update GHCR pull secret
+        # bankapp-deployment.yml references this under imagePullSecrets
+        # (skip this step if you make the GHCR package public instead)
+        run: |
+          kubectl create secret docker-registry ghcr-pull-secret \
+            --namespace=bankapp \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --dry-run=client -o yaml | kubectl apply -f -
 
-            cd ~/bankapp
+      - name: Apply Kubernetes Manifests
+        run: |
+          kubectl apply -n bankapp -f k8s/service.yml
+          kubectl apply -n bankapp -f k8s/bankapp-deployment.yml
 
-            # Fetch secrets from Secrets Manager and create .env
-            aws secretsmanager get-secret-value --secret-id bankapp/prod-secrets --query SecretString --output text > secrets.json
+      - name: Set Image and Roll Out
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/bankapp:${{ github.sha }}
+        run: |
+          kubectl set image deployment/bankapp-deployment bankapp=$IMAGE -n bankapp
+          kubectl rollout status deployment/bankapp-deployment -n bankapp --timeout=120s
 
-            # Extract variables and write to .env
-            echo "DB_HOST=$(jq -r .DB_HOST secrets.json)" > .env
-            echo "DB_PORT=$(jq -r .DB_PORT secrets.json)" >> .env
-            echo "DB_NAME=$(jq -r .DB_NAME secrets.json)" >> .env
-            echo "DB_USER=$(jq -r .DB_USER secrets.json)" >> .env
-            echo "DB_PASSWORD=$(jq -r .DB_PASSWORD secrets.json)" >> .env
-            echo "OLLAMA_URL=$(jq -r .OLLAMA_URL secrets.json)" >> .env
-            echo "ECR_REGISTRY=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com" >> .env
-            echo "ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}" >> .env
-            echo "IMAGE_TAG=${{ github.sha }}" >> .env
-
-            # Clean up
-            rm secrets.json
-
-            # Pull and Deploy using the app-tier.yml transferred via SCP
-            docker compose -f app-tier.yml pull
-            docker compose -f app-tier.yml up -d --build
+      - name: Smoke Check
+        run: |
+          sleep 5
+          curl -sf http://localhost:30080 -o /dev/null || \
+            (echo "::error::App did not respond on port 30080 after deploy" && exit 1)
 
   # ============================================================
   # GATE 9: DAST - Dynamic Application Security Testing
   # ============================================================
   dast:
     name: DAST - OWASP ZAP Baseline Scan
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: deploy
     steps:
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.15.0
         continue-on-error: true  # Workaround for ZAP's internal artifact upload bug
         with:
-          target: 'http://${{ secrets.EC2_HOST }}:8080'
+          target: 'http://localhost:30080'
           artifact_name: zapreport
           fail_action: false
           allow_issue_writing: false
