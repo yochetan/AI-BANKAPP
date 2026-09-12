@@ -2,12 +2,11 @@ name: DevSecOps Main Pipeline
 
 on:
   push:
-    branches: [ main, devsecops, k8s ]
+    branches: [ main ]
     paths-ignore:
       - '**.md'
       - '.gitignore'
       - 'LICENSE'
-      - 'screenshots/**'
       - 'scripts/**'
 
 permissions:
@@ -37,4 +36,7 @@ jobs:
   cd:
     needs: build
     uses: ./.github/workflows/cd.yml
+    permissions:
+      contents: read
+      packages: read   # cd.yml needs this to pull the image from GHCR
     secrets: inherit
