@@ -1,0 +1,13 @@
+# Temporary ignores - fix version not yet published on Maven Central
+#
+# org.apache.tomcat.embed:tomcat-embed-core
+# Fixed in 10.1.58 / 11.0.25 / 9.0.121 per advisory, but as of 2026-09-12
+# none of these versions are published to Maven Central yet (latest
+# available is 10.1.57). Remove these three lines and bump
+# tomcat.version in pom.xml as soon as 10.1.58 is released.
+#
+# Recheck: https://repo.maven.apache.org/maven2/org/apache/tomcat/embed/tomcat-embed-core/
+
+CVE-2026-65182
+CVE-2026-65905
+CVE-2026-68525
