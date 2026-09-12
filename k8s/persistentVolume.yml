@@ -14,7 +14,7 @@ spec:
   hostPath:
     path: /mnt/data/mysql
 
-      ---
+---
 
 kind: PersistentVolume
 apiVersion: v1

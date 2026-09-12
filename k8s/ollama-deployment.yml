@@ -10,6 +10,8 @@ spec:
   selector:
     matchLabels:
       app: ollama
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -17,13 +19,40 @@ spec:
     spec:
       containers:
       - name: ollama
-        image: ollama/ollama
+        image: ollama/ollama:latest
         ports:
         - containerPort: 11434
+        resources:
+          requests:
+             memory: "1Gi"
+             cpu: "500m"
+          limits:
+            memory: "1.5Gi"
+            cpu: "1000m"
         volumeMounts:
         - name: ollama-storage
-          mountPath: /var/lib/ollama
-      
+          mountPath: /root/.ollama
+        lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    until ollama list > /dev/null 2>&1; do sleep 2; done
+                    ollama pull tinyllama
+        readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "ollama list | grep -q tinyllama"]
+            initialDelaySeconds: 30
+            failureThreshold: 30
+        livenessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 5
       volumes:
       - name: ollama-storage
         persistentVolumeClaim: 

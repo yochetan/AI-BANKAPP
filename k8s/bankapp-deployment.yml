@@ -6,7 +6,7 @@ metadata:
   labels:
     app: bankapp
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: bankapp
@@ -15,9 +15,31 @@ spec:
       labels:
         app: bankapp
     spec:
+      initContainers:
+        - name: wait-for-mysql
+          image: busybox:1.36
+          command: ["/bin/sh", "-c", "until nc -z mysql-service 3306; do sleep 2; done"]
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
+        - name: wait-for-ollama
+          image: busybox:1.36
+          command: ["/bin/sh", "-c", "until nc -z ollama-service 11434; do sleep 2; done"]
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
       containers:
       - name: bankapp
         image: stupidgenuis/ai-bankapp:k8s
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
         envFrom:
@@ -25,3 +47,23 @@ spec:
               name: bankapp-config-map
           - secretRef:
               name: bankapp-secrets
+        resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+        readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            failureThreshold: 15
+        livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 5
