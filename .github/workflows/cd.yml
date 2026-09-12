@@ -10,16 +10,21 @@ permissions:
 jobs:
 
   # ============================================================
-  # GATE 8: DEPLOY TO KIND
+  # GATE 8 + 9: DEPLOY TO KIND, THEN DAST
+  # Merged into one job — ubuntu-latest runners are ephemeral,
+  # so the kind cluster from "deploy" won't exist in a separate job.
   # ============================================================
-  deploy:
-    name: Deploy to kind
-    # Runs on your own machine, next to the kind cluster.
-    # Repo/org settings -> Actions -> Runners -> New self-hosted runner
-    runs-on: self-hosted
+  deploy-and-dast:
+    name: Deploy to kind & DAST
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: bankapp-cluster
 
       - name: Verify kind cluster is reachable
         run: |
@@ -60,14 +65,6 @@ jobs:
           curl -sf http://localhost:30080 -o /dev/null || \
             (echo "::error::App did not respond on port 30080 after deploy" && exit 1)
 
-  # ============================================================
-  # GATE 9: DAST - Dynamic Application Security Testing
-  # ============================================================
-  dast:
-    name: DAST - OWASP ZAP Baseline Scan
-    runs-on: self-hosted
-    needs: deploy
-    steps:
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.15.0
         continue-on-error: true  # Workaround for ZAP's internal artifact upload bug
