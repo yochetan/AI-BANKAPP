@@ -4,14 +4,11 @@ name: ai-bankapp-cluster
 
 nodes:
 - role: control-plane
-  image: kindest/node:v1.37.0-rc.1
   extraPortMappings:
     - containerPort: 30080
       hostPort: 8080
       protocol: TCP
 
 - role: worker
-  image: kindest/node:v1.37.0-rc.1
 
 - role: worker
-  image: kindest/node:v1.37.0-rc.1
