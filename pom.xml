@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.4.13</version>
+		<version>3.5.14</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.example</groupId>
@@ -28,10 +28,13 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
-		<!-- CVE Remediation: Pin Tomcat to patched version (10.1.40 and below have CRITICAL CVEs) -->
-		<tomcat.version>10.1.52</tomcat.version>
-		<!-- Fix GHSA-72hv-8253-57qq: Upgrade Jackson to 2.18.6 -->
-		<jackson-bom.version>2.18.6</jackson-bom.version>
+		<!-- CVE Remediation: Tomcat - fixes CVE-2026-41293, CVE-2026-43512, CVE-2026-43515,
+		     CVE-2026-29129, CVE-2026-34483, CVE-2026-34487, CVE-2026-41284, CVE-2026-42498, CVE-2026-43513 -->
+		<tomcat.version>10.1.55</tomcat.version>
+		<!-- CVE Remediation: Jackson - fixes GHSA-r7wm-3cxj-wff9, CVE-2026-54512, CVE-2026-54513 -->
+		<jackson-bom.version>2.18.8</jackson-bom.version>
+		<!-- CVE Remediation: Thymeleaf SSTI - fixes CVE-2026-40477 (CRITICAL), CVE-2026-40478, CVE-2026-41901 -->
+		<thymeleaf.version>3.1.5.RELEASE</thymeleaf.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -83,6 +86,48 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- CVE Remediation: commons-io - fixes CVE-2024-47554 -->
+			<dependency>
+				<groupId>commons-io</groupId>
+				<artifactId>commons-io</artifactId>
+				<version>2.14.0</version>
+			</dependency>
+			<!-- CVE Remediation: micrometer-core - fixes CVE-2026-40984 -->
+			<dependency>
+				<groupId>io.micrometer</groupId>
+				<artifactId>micrometer-core</artifactId>
+				<version>1.15.12</version>
+			</dependency>
+			<!-- CVE Remediation: httpcore5 - fixes CVE-2026-54399 -->
+			<dependency>
+				<groupId>org.apache.httpcomponents.core5</groupId>
+				<artifactId>httpcore5</artifactId>
+				<version>5.4.3</version>
+			</dependency>
+			<!-- CVE Remediation: httpcore5-h2 - fixes CVE-2026-54428 -->
+			<dependency>
+				<groupId>org.apache.httpcomponents.core5</groupId>
+				<artifactId>httpcore5-h2</artifactId>
+				<version>5.4.3</version>
+			</dependency>
+			<!-- CVE Remediation: assertj-core (test scope) - fixes CVE-2026-24400 -->
+			<dependency>
+				<groupId>org.assertj</groupId>
+				<artifactId>assertj-core</artifactId>
+				<version>3.27.7</version>
+				<scope>test</scope>
+			</dependency>
+			<!-- CVE Remediation: plexus-utils - fixes CVE-2025-67030 -->
+			<dependency>
+				<groupId>org.codehaus.plexus</groupId>
+				<artifactId>plexus-utils</artifactId>
+				<version>3.6.1</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<build>
 		<plugins>

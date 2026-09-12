@@ -4,7 +4,6 @@ on:
   workflow_call:
 
 permissions:
-  id-token: write  # Required for OIDC
   contents: read
 
 jobs:
@@ -81,31 +80,34 @@ jobs:
           path: trivy-report.txt
 
   # ============================================================
-  # GATE 7: PUSH TO ECR
+  # GATE 7: LOAD IMAGE INTO KIND CLUSTER
   # ============================================================
-  push_to_ecr:
-    name: Push to ECR
+  load_to_kind:
+    name: Load Image into kind
     runs-on: ubuntu-latest
     needs: image_scan
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Build Final Image
+        run: docker build --pull -t bankapp:${{ github.sha }} .
+
+      - name: Install kind
+        uses: helm/kind-action@v1.10.0
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          install_only: true
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+      # If the kind cluster is created elsewhere (e.g. a persistent
+      # self-hosted runner), replace this step with a check that the
+      # cluster named below already exists instead of creating a new one.
+      - name: Create kind cluster
+        run: kind create cluster --name bankapp-cluster
 
-      - name: Build, Tag, and Push Image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Load Image into kind
+        run: kind load docker-image bankapp:${{ github.sha }} --name bankapp-cluster
+
+      - name: (Optional) Also tag as latest for local convenience
         run: |
-          docker build --pull -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag bankapp:${{ github.sha }} bankapp:latest
+          kind load docker-image bankapp:latest --name bankapp-cluster
