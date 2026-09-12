@@ -1,5 +1,7 @@
 # AI BankApp
 
+![DevSecOps Main Pipeline](https://github.com/yochetan/AI-BANKAPP/actions/workflows/devsecops-main.yml/badge.svg)
+
 A Spring Boot banking application with an integrated AI assistant (via Ollama), deployed to Kubernetes with a security-gated CI/CD pipeline.
 
 ## Tech Stack
