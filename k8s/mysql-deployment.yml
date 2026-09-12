@@ -45,12 +45,12 @@ spec:
           mountPath: /var/lib/mysql
         readinessProbe:
           exec:
-            command: ["mysqladmin", "ping", "-h", "localhost"]
+            command: ["mysqladmin", "ping", "-h", "127.0.0.1", "--protocol=tcp"]
           initialDelaySeconds: 15
           periodSeconds: 10
         livenessProbe:
             exec:
-              command: ["mysqladmin", "ping", "-h", "localhost"]
+              command: ["mysqladmin", "ping", "-h", "127.0.0.1", "--protocol=tcp"]
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 5
