@@ -73,19 +73,26 @@ jobs:
           kubectl set image deployment/bankapp-deployment bankapp=$IMAGE -n bankapp
           kubectl rollout status deployment/bankapp-deployment -n bankapp --timeout=120s
 
-      - name: Debug on rollout failure
+      - name: Debug on failure
         if: failure()
         run: |
-          echo "===== PODS ====="
+          echo "===== PVs ====="
+          kubectl get pv
+          echo "===== PVCs ====="
+          kubectl get pvc -n bankapp
+          echo "===== ALL PODS ====="
           kubectl get pods -n bankapp -o wide
-          echo "===== DESCRIBE bankapp PODS ====="
-          kubectl describe pods -n bankapp -l app=bankapp
-          echo "===== bankapp CONTAINER LOGS ====="
-          kubectl logs -n bankapp -l app=bankapp --all-containers --tail=100 || true
-          echo "===== bankapp PREVIOUS CONTAINER LOGS (if crashed) ====="
-          kubectl logs -n bankapp -l app=bankapp --all-containers --previous --tail=100 || true
+          echo "===== DESCRIBE ALL PODS ====="
+          kubectl describe pods -n bankapp
+          echo "===== CONTAINER LOGS (all pods) ====="
+          for pod in $(kubectl get pods -n bankapp -o jsonpath='{.items[*].metadata.name}'); do
+            echo "--- $pod ---"
+            kubectl logs -n bankapp "$pod" --all-containers --tail=100 || true
+          done
           echo "===== SERVICES & ENDPOINTS ====="
           kubectl get svc,endpoints -n bankapp
+          echo "===== NAMESPACE EVENTS ====="
+          kubectl get events -n bankapp --sort-by='.lastTimestamp'
 
       - name: Smoke Check
         run: |
