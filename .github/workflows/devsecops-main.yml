@@ -2,11 +2,12 @@ name: DevSecOps Main Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, devsecops, k8s ]
     paths-ignore:
       - '**.md'
       - '.gitignore'
       - 'LICENSE'
+      - 'screenshots/**'
       - 'scripts/**'
 
 permissions:
@@ -28,6 +29,9 @@ jobs:
   build:
     needs: ci
     uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+      packages: write   # push_to_ghcr needs this to push the image
     secrets: inherit
 
   # ============================================================

@@ -47,9 +47,23 @@ jobs:
             --docker-password=${{ secrets.GITHUB_TOKEN }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Apply Kubernetes Manifests
+      - name: Apply Config, Secrets and PVs/PVCs
+        run: |
+          kubectl apply -n bankapp -f k8s/configMap.yml
+          kubectl apply -n bankapp -f k8s/secrets.yml
+          kubectl apply -f k8s/persistentVolume.yml
+          kubectl apply -n bankapp -f k8s/pvc.yml
+
+      - name: Apply MySQL and Ollama, then wait for them
         run: |
           kubectl apply -n bankapp -f k8s/service.yml
+          kubectl apply -n bankapp -f k8s/mysql-deployment.yml
+          kubectl apply -n bankapp -f k8s/ollama-deployment.yml
+          kubectl rollout status deployment/mysql-deployment -n bankapp --timeout=120s
+          kubectl rollout status deployment/ollama-deployment -n bankapp --timeout=300s
+
+      - name: Apply Kubernetes Manifests
+        run: |
           kubectl apply -n bankapp -f k8s/bankapp-deployment.yml
 
       - name: Set Image and Roll Out
@@ -58,6 +72,20 @@ jobs:
         run: |
           kubectl set image deployment/bankapp-deployment bankapp=$IMAGE -n bankapp
           kubectl rollout status deployment/bankapp-deployment -n bankapp --timeout=120s
+
+      - name: Debug on rollout failure
+        if: failure()
+        run: |
+          echo "===== PODS ====="
+          kubectl get pods -n bankapp -o wide
+          echo "===== DESCRIBE bankapp PODS ====="
+          kubectl describe pods -n bankapp -l app=bankapp
+          echo "===== bankapp CONTAINER LOGS ====="
+          kubectl logs -n bankapp -l app=bankapp --all-containers --tail=100 || true
+          echo "===== bankapp PREVIOUS CONTAINER LOGS (if crashed) ====="
+          kubectl logs -n bankapp -l app=bankapp --all-containers --previous --tail=100 || true
+          echo "===== SERVICES & ENDPOINTS ====="
+          kubectl get svc,endpoints -n bankapp
 
       - name: Smoke Check
         run: |
